@@ -247,6 +247,45 @@
     </div>
 
     <!-- Duplicate Alert -->
+    <!-- Health Category Tags -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-heart-pulse text-rose-500"></i> หมวดสุขภาพ (เลือกได้หลายข้อ)</label>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer active:bg-emerald-100 transition">
+          <input class="health-tag accent-emerald-600 w-4 h-4 rounded" type="checkbox" value="ผู้สูงอายุ"/>
+          <span class="font-bold text-slate-800 text-xs">👴 ผู้สูงอายุ (60+)</span>
+        </label>
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer active:bg-emerald-100 transition">
+          <input class="health-tag accent-emerald-600 w-4 h-4 rounded" type="checkbox" value="ผู้ป่วยติดเตียง"/>
+          <span class="font-bold text-slate-800 text-xs">🛏️ ผู้ป่วยติดเตียง</span>
+        </label>
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer active:bg-emerald-100 transition">
+          <input class="health-tag accent-emerald-600 w-4 h-4 rounded" type="checkbox" value="ผู้ป่วยติดบ้าน"/>
+          <span class="font-bold text-slate-800 text-xs">🏡 ผู้ป่วยติดบ้าน</span>
+        </label>
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer active:bg-emerald-100 transition">
+          <input class="health-tag accent-emerald-600 w-4 h-4 rounded" type="checkbox" value="ผู้พิการ"/>
+          <span class="font-bold text-slate-800 text-xs">♿ ผู้พิการ</span>
+        </label>
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer active:bg-emerald-100 transition">
+          <input class="health-tag accent-emerald-600 w-4 h-4 rounded" type="checkbox" value="โรคเรื้อรัง/NCDs"/>
+          <span class="font-bold text-slate-800 text-xs">🩺 โรคเรื้อรัง</span>
+        </label>
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer active:bg-emerald-100 transition">
+          <input class="health-tag accent-emerald-600 w-4 h-4 rounded" type="checkbox" value="เสี่ยงไข้เลือดออก"/>
+          <span class="font-bold text-slate-800 text-xs">🦟 เสี่ยงไข้เลือดออก</span>
+        </label>
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer active:bg-emerald-100 transition">
+          <input class="health-tag accent-emerald-600 w-4 h-4 rounded" type="checkbox" value="อุบัติเหตุ"/>
+          <span class="font-bold text-slate-800 text-xs">⚠️ อุบัติเหตุ</span>
+        </label>
+        <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer active:bg-emerald-100 transition">
+          <input class="health-tag accent-emerald-600 w-4 h-4 rounded" type="checkbox" value="อื่นๆ"/>
+          <span class="font-bold text-slate-800 text-xs">📋 อื่นๆ</span>
+        </label>
+      </div>
+    </div>
+
     <div id="duplicateAlert" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
       <div class="flex items-start gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
@@ -823,6 +862,7 @@ function handleSubmit(isUpdate = false) {
 
 function doSubmit(houseNo, owner, landmarks, isUpdate) {
   const now = new Date().toLocaleString('th-TH');
+  const healthTags = Array.from(document.querySelectorAll('.health-tag:checked')).map(cb => cb.value);
   const record = {
     houseNo,
     moo: profile.moo,
@@ -834,6 +874,7 @@ function doSubmit(houseNo, owner, landmarks, isUpdate) {
     audio: audioBase64 || '',
     transcript: transcriptText || '',
     landmarks: landmarks,
+    healthTags: healthTags,
     updatedBy: profile.name,
     timestamp: now,
     history: []
