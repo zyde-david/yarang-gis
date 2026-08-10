@@ -313,8 +313,18 @@ function initMap(){
   if(map)return;
   map=L.map('miniMap',{zoomControl:false,attributionControl:false}).setView([6.66,101.28],14);
   L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',{maxZoom:20,attribution:'Google'}).addTo(map);
+  refreshMapMarkers();
+}
+
+function refreshMapMarkers(){
+  if(!map)return;
+  map.eachLayer(l=>{if(l._isHouse)map.removeLayer(l)});
   houses.forEach(h=>{
-    if(h.lat&&h.lng)L.circleMarker([h.lat,h.lng],{radius:6,color:'#10b981',fillColor:'#10b981',fillOpacity:.8}).addTo(map).bindPopup('บ้าน '+h.houseNo);
+    if(h.lat&&h.lng){
+      const m=L.circleMarker([h.lat,h.lng],{radius:7,color:'#10b981',fillColor:'#10b981',fillOpacity:.85,weight:2}).addTo(map);
+      m._isHouse=true;
+      m.bindPopup('<b>บ้าน '+h.houseNo+'</b><br>'+(h.owner||'')+'<br>±'+(h.accuracy||'?')+'ม.'+(h.healthTags&&h.healthTags.length?'<br>🏷️ '+h.healthTags.join(', '):'')+'<br><a href="https://maps.google.com/?q='+h.lat+','+h.lng+'" target="_blank">เปิดใน Google Maps</a>');
+    }
   });
 }
 
@@ -322,12 +332,9 @@ function updateMapPosition(lat,lng){
   if(!map)return;
   map.setView([lat,lng],18);
   if(marker)map.removeLayer(marker);
-  marker=L.marker([lat,lng],{draggable:true}).addTo(map).bindPopup('ลากหมุดเพื่อแก้ไข').openPopup();
-  marker.on('dragend',function(e){
-    const p=e.target.getLatLng();
-    currentGPS={lat:p.lat.toFixed(6),lng:p.lng.toFixed(6),accuracy:0};
-    showToast('แก้ไขตำแหน่งสำเร็จ','success');
-  });
+  marker=L.circleMarker([lat,lng],{radius:10,color:'#3b82f6',fillColor:'#3b82f6',fillOpacity:.5,weight:3}).addTo(map);
+  marker.bindPopup('📍 ตำแหน่งปัจจุบัน').openPopup();
+  refreshMapMarkers();
 }
 
 // === GPS ===
@@ -491,7 +498,7 @@ function handleSubmit(isUpdate){
   else if(idx>=0&&houses[idx].lat){const old={...houses[idx]};old.action='updated';old.history=undefined;rec.history=[...(houses[idx].history||[]),old];houses[idx]=rec}
   else if(idx>=0){rec.history=houses[idx].history||[];houses[idx]=rec}
   else houses.push(rec);
-  saveHouses();syncToCloud(rec);resetForm();renderDoneList();updateProgress();
+  saveHouses();syncToCloud(rec);resetForm();renderDoneList();updateProgress();refreshMapMarkers();
   showToast('✅ บันทึกสำเร็จ!','success');
 }
 
