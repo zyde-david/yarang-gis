@@ -32,7 +32,7 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
 .gps-st.warn{background:#fffbeb;border-color:#f59e0b;color:#92400e}
 .gps-st.error{background:#fef2f2;border-color:#ef4444;color:#991b1b}
 .gps-st.rec{background:#fef2f2;border-color:#ef4444;color:#991b1b;animation:pulse-red 1s infinite}
-#miniMap{height:280px;border-radius:12px;border:2px solid #e2e8f0;z-index:1}
+#miniMap{height:220px;border-radius:12px;border:2px solid #e2e8f0;z-index:1}
 .big-input{min-height:52px;font-size:1.1rem;font-weight:700}
 .big-btn{min-height:56px;font-size:1.1rem}
 .photo-prev{max-height:140px;border-radius:12px;object-fit:cover}
@@ -71,7 +71,7 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
           <option value="">— เลือกหมู่ —</option>
           <option value="1">หมู่ 1</option><option value="2">หมู่ 2</option><option value="3">หมู่ 3</option>
           <option value="4">หมู่ 4</option><option value="5">หมู่ 5</option><option value="6">หมู่ 6</option>
-          
+          <option value="7">หมู่ 7</option><option value="8">หมู่ 8</option>
         </select>
       </div>
     </div>
@@ -86,7 +86,7 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
   <!-- Header -->
   <div class="sticky top-0 z-30 bg-emerald-700 text-white px-4 py-3 flex items-center justify-between shadow-md">
     <div>
-      <div class="font-extrabold text-sm" id="headerName" onclick="editProfile()" style="cursor:pointer">อสม.</div>
+      <div class="font-extrabold text-sm" id="headerName">อสม.</div>
       <div class="text-xs text-emerald-200" id="headerMoo">หมู่ X</div>
     </div>
     <div class="flex items-center gap-2">
@@ -109,8 +109,11 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
   <div class="p-4 space-y-3">
     <!-- House Number + Verify -->
     <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
-      
-      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-house text-emerald-600"></i> บ้านเลขที่ (ไม่บังคับ)</label>
+      <div class="flex gap-2 mb-2">
+        <button onclick="setMode('add')" id="modeAdd" class="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white">➕ เพิ่มบ้าน</button>
+        <button onclick="setMode('check')" id="modeCheck" class="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">🔍 ตรวจสอบ</button>
+      </div>
+      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-house text-emerald-600"></i> บ้านเลขที่ *</label>
       <input id="houseNo" class="w-full px-4 py-3 rounded-xl border border-slate-300 big-input focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="เช่น 45/2" type="text" oninput="onHouseInput()"/>
       <div id="houseInfo" class="hidden bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs"><div class="font-bold text-blue-800 mb-1">📋 ข้อมูลบ้านนี้</div><div id="houseInfoContent"></div></div>
       <div id="verifySection" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-3">
@@ -134,7 +137,7 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
       </button>
       <div class="gps-st" id="gpsStatus">กดปุ่มเพื่อจับพิกัด</div>
       <div id="accuracyWarning" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-        <i class="fa-solid fa-triangle-exclamation"></i> <strong>พิกัดคลาดเคลื่อน</strong> — <span id="accMeters"></span> ม. ยืนกลางแจ้ง ลองใหม่
+        <i class="fa-solid fa-triangle-exclamation"></i> <strong>พิกัดอาจไม่แม่นยำ</strong> — ยืนกลางแจ้งแล้วลองใหม่
       </div>
       <div id="audioPreview" class="hidden">
         <audio id="audioPlayer" controls class="w-full h-10"></audio>
@@ -146,8 +149,8 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
         <i class="fa-solid fa-floppy-disk"></i> บันทึกพิกัด
       </button>
       <div class="flex gap-2">
-        <label for="cameraInput" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-center cursor-pointer text-sm font-bold text-slate-700 flex items-center justify-center gap-2"><i class="fa-solid fa-camera"></i> 📸 ถ่ายรูป / 🎬 วิดีโอ</label>
-        <input id="cameraInput" accept="image/*,video/*" capture="environment" class="hidden" type="file" onchange="previewMedia(event)"/><label for="uploadInput" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-center cursor-pointer text-sm font-bold text-slate-700"><i class="fa-solid fa-folder-open"></i></label><input id="uploadInput" accept="image/*,video/*" class="hidden" type="file" onchange="previewMedia(event)"/>
+        <label for="photoInput" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-center cursor-pointer text-sm font-bold text-slate-700"><i class="fa-solid fa-camera"></i> ถ่ายรูป</label>
+        <input id="photoInput" accept="image/*" capture="environment" class="hidden" type="file" onchange="previewPhoto(event)"/>
       </div>
       <div id="photoPreviewWrap" class="hidden relative">
         <img id="photoPreview" class="photo-prev w-full rounded-xl border border-slate-200"/>
@@ -159,7 +162,7 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
     <div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-200">
       <h3 class="font-bold text-slate-800 text-sm mb-2"><i class="fa-solid fa-map text-blue-600"></i> แผนที่ดาวเทียม</h3>
       <div id="miniMap"></div>
-      <div class="flex justify-between items-center mt-2"><span class="text-[10px] text-slate-400" id="mapCoords">ลากหมุดเพื่อแก้ไข</span><a id="gMapsLink" href="https://www.google.com/maps" target="_blank" class="text-[10px] text-blue-600 font-bold"><i class="fa-solid fa-up-right-from-square"></i> เปิดใน Google Maps</a></div>
+      <p class="text-[10px] text-slate-400 mt-1 text-center">ลากหมุดเพื่อแก้ไขตำแหน่ง</p>
     </div>
 
     <!-- Health Tags -->
@@ -264,27 +267,6 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
   </div>
 </div>
 
-<!-- Edit Profile Modal -->
-<div id="editProfileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-  <div class="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
-    <h3 class="font-extrabold text-slate-800 text-base text-center">แก้ไขข้อมูล</h3>
-    <div class="space-y-3">
-      <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อ-นามสกุล</label>
-        <input id="editName" class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" type="text"/></div>
-      <div><label class="block text-xs font-bold text-slate-700 mb-1">เบอร์โทรศัพท์</label>
-        <input id="editPhone" class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" type="tel"/></div>
-      <div><label class="block text-xs font-bold text-slate-700 mb-1">หมู่</label>
-        <select id="editMoo" class="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-          <option value="1">หมู่ 1</option><option value="2">หมู่ 2</option><option value="3">หมู่ 3</option>
-          <option value="4">หมู่ 4</option><option value="5">หมู่ 5</option><option value="6">หมู่ 6</option>
-        </select></div>
-    </div>
-    <div class="flex gap-2">
-      <button onclick="closeEditProfile()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-bold text-sm rounded-xl">ยกเลิก</button>
-      <button onclick="saveEditProfile()" class="flex-1 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl">บันทึก</button>
-    </div>
-  </div>
-</div>
 <div id="toast"></div>
 
 <script>
@@ -297,7 +279,7 @@ let isOnline=navigator.onLine,pendingSync=[],currentMode='add';
 let gpsCaptured=false;
 let mediaRecorder=null,audioChunks=[],audioBlob=null,audioBase64=null;
 let recognition=null,isRecording=false,recordingTimer=null,recordingSeconds=0,transcriptText='';
-let currentPhoto=null,currentVideo=null,selectedLandmarks=[];
+let currentPhoto=null,selectedLandmarks=[];
 
 // === LANGUAGE TOGGLE ===
 let currentLang='th-TH';
@@ -332,7 +314,7 @@ function saveSetup(){
 function showMainApp(){
   document.getElementById('setupScreen').classList.add('hidden');
   document.getElementById('mainApp').classList.remove('hidden');
-  document.getElementById('headerName').innerHTML='อสม. '+profile.name+' <i class='fa-solid fa-pen text-[10px]'></i>';
+  document.getElementById('headerName').textContent='อสม. '+profile.name;
   document.getElementById('headerMoo').textContent='หมู่ '+profile.moo;
   loadHouses();renderDoneList();updateProgress();updateSyncBadge();
   setTimeout(initMap,300);
@@ -367,8 +349,6 @@ function updateMapPosition(lat,lng){
   if(marker)map.removeLayer(marker);
   marker=L.circleMarker([lat,lng],{radius:10,color:'#3b82f6',fillColor:'#3b82f6',fillOpacity:.5,weight:3}).addTo(map);
   marker.bindPopup('📍 ตำแหน่งปัจจุบัน').openPopup();
-  document.getElementById('mapCoords').textContent=lat+', '+lng;
-  document.getElementById('gMapsLink').href='https://www.google.com/maps?q='+lat+','+lng;
   refreshMapMarkers();
 }
 
@@ -377,7 +357,7 @@ function captureGPS(){
   const btn=document.getElementById('gpsBtn'),st=document.getElementById('gpsStatus'),ic=document.getElementById('gpsIcon'),w=document.getElementById('accuracyWarning');
   btn.className='gps-btn loading';ic.className='fa-solid fa-spinner gi';
   st.className='gps-st';st.textContent='กำลังค้นหาสัญญาณดาวเทียม...';
-  w.classList.add('hidden');}
+  w.classList.add('hidden');
   if(!navigator.geolocation){setGpsError('อุปกรณ์ไม่รองรับ GPS');return}
   navigator.geolocation.getCurrentPosition(pos=>{
     const lat=pos.coords.latitude.toFixed(6),lng=pos.coords.longitude.toFixed(6),acc=Math.round(pos.coords.accuracy);
@@ -387,7 +367,7 @@ function captureGPS(){
     ic.className='fa-solid '+(ok?'fa-location-dot':'fa-location-crosshairs')+' gi';
     st.className='gps-st '+(ok?'ok':'warn');
     st.textContent='ละติจูด: '+lat+', ลองจิจูด: '+lng+' (±'+acc+' ม.)';
-    if(!ok){w.classList.remove('hidden');else w.classList.add('hidden');}
+    if(!ok)w.classList.remove('hidden');else w.classList.add('hidden');
     updateMapPosition(parseFloat(lat),parseFloat(lng));
     checkDuplicate();
     gpsCaptured=true;
@@ -493,7 +473,7 @@ function removeAudio(){
 }
 
 // === PHOTO ===
-function previewMedia(e){
+function previewPhoto(e){
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();r.onload=function(ev){
     currentPhoto=ev.target.result;
@@ -501,7 +481,7 @@ function previewMedia(e){
     document.getElementById('photoPreviewWrap').classList.remove('hidden');
   };r.readAsDataURL(f);
 }
-function removePhoto(){currentPhoto=null;document.getElementById('cameraInput').value='';document.getElementById('uploadInput').value='';document.getElementById('photoPreviewWrap').classList.add('hidden')}
+function removePhoto(){currentPhoto=null;document.getElementById('photoInput').value='';document.getElementById('photoPreviewWrap').classList.add('hidden')}
 
 // === LANDMARKS ===
 function toggleLandmark(btn){
@@ -666,27 +646,6 @@ function shareData(){
   else if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>showToast('คัดลอกแล้ว','success'));
 }
 function dl(b,n){const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u)}
-
-// === EDIT PROFILE ===
-function editProfile(){
-  document.getElementById('editName').value=profile.name;
-  document.getElementById('editPhone').value=profile.phone;
-  document.getElementById('editMoo').value=profile.moo;
-  document.getElementById('editProfileModal').classList.remove('hidden');
-}
-function closeEditProfile(){document.getElementById('editProfileModal').classList.add('hidden')}
-function saveEditProfile(){
-  const n=document.getElementById('editName').value.trim();
-  const p=document.getElementById('editPhone').value.trim();
-  const m=document.getElementById('editMoo').value;
-  if(!n||!p){showToast('กรุณากรอกข้อมูลให้ครบ','error');return}
-  profile={name:n,phone:p,moo:m};
-  localStorage.setItem(PROFILE_KEY,JSON.stringify(profile));
-  document.getElementById('headerName').innerHTML='อสม. '+profile.name+' <i class="fa-solid fa-pen text-[10px]"></i>';
-  document.getElementById('headerMoo').textContent='หมู่ '+profile.moo;
-  closeEditProfile();
-  showToast('แก้ไขข้อมูลสำเร็จ','success');
-}
 
 // === TOAST ===
 function showToast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='show';t.style.background=type==='error'?'#ef4444':type==='success'?'#10b981':type==='warning'?'#f59e0b':'#1e293b';setTimeout(()=>{t.className=''},3000)}
