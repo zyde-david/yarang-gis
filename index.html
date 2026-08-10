@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>เก็บพิกัด อสม. ยะรัง</title>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#059669"/>
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3063/3063822.png"/>
+<!-- Leaflet Map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Sukhumvit Set', 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; background: #f1f5f9; }
+  
+  /* GPS Circle Button */
+  .gps-btn { width: 80px; height: 80px; border-radius: 50%; border: 3px solid #cbd5e1; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 auto; }
+  .gps-btn:active { transform: scale(0.95); }
+  .gps-btn.gps-ready { border-color: #6366f1; }
+  .gps-btn.gps-ready .gps-icon { color: #6366f1; }
+  .gps-btn.gps-loading { border-color: #6366f1; background: #e0e7ff; animation: pulse 1.5s infinite; }
+  .gps-btn.gps-loading .gps-icon { color: #6366f1; animation: spin 1s linear infinite; }
+  .gps-btn.gps-ok { border-color: #10b981; background: #ecfdf5; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+  .gps-btn.gps-ok .gps-icon { color: #10b981; }
+  .gps-btn.gps-warn { border-color: #f59e0b; background: #fffbeb; box-shadow: 0 0 0 3px rgba(245,158,11,0.2); }
+  .gps-btn.gps-warn .gps-icon { color: #f59e0b; }
+  .gps-btn.gps-error { border-color: #ef4444; background: #fef2f2; box-shadow: 0 0 0 3px rgba(239,68,68,0.2); }
+  .gps-btn.gps-error .gps-icon { color: #ef4444; }
+  .gps-icon { font-size: 2rem; transition: all 0.3s; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 3px rgba(99,102,241,0.2); } 50% { box-shadow: 0 0 0 8px rgba(99,102,241,0.1); } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  
+  /* GPS Status Display */
+  .gps-status { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-align: center; padding: 0.5rem; border-radius: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; margin-top: 0.5rem; min-height: 2rem; }
+  .gps-status.ok { background: #ecfdf5; border-color: #10b981; color: #065f46; }
+  .gps-status.warn { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+  .gps-status.error { background: #fef2f2; border-color: #ef4444; color: #991b1b; }
+  
+  /* Mini Map */
+  #miniMap { height: 200px; border-radius: 12px; border: 2px solid #e2e8f0; z-index: 1; }
+  
+  /* Big Input */
+  .big-input { min-height: 52px; font-size: 1.1rem; font-weight: 700; }
+  .big-btn { min-height: 56px; font-size: 1.1rem; }
+  
+  /* Photo Preview */
+  .photo-preview { max-height: 150px; border-radius: 12px; object-fit: cover; }
+  
+  /* Toast */
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 0.75rem 1.5rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; max-width: 90%; text-align: center; }
+  #toast.show { opacity: 1; }
+  
+  /* Setup Screen */
+  .setup-card { background: #fff; border-radius: 20px; padding: 2rem; max-width: 400px; margin: 0 auto; box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
+  
+  /* Progress Bar */
+  .progress-bar { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.5s; }
+  
+  /* House List */
+  .house-item { padding: 0.75rem 1rem; border-radius: 12px; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; }
+  .house-item.done { background: #ecfdf5; border: 1px solid #a7f3d0; }
+  .house-item.pending { background: #fff; border: 1px solid #e2e8f0; cursor: pointer; }
+  .house-item.pending:active { background: #f0fdf4; transform: scale(0.98); }
+</style>
+</head>
+<body>
+
+<!-- ==================== SETUP SCREEN ==================== -->
+<div id="setupScreen" class="min-h-screen flex items-center justify-center p-4">
+  <div class="setup-card text-center space-y-5">
+    <div class="text-5xl">🗺️</div>
+    <h1 class="text-xl font-extrabold text-slate-800">ระบบเก็บพิกัด อสม.</h1>
+    <p class="text-sm text-slate-500">โรงพยาบาลส่งเสริมสุขภาพตำบลยะรัง</p>
+    
+    <div class="space-y-3 text-left">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">ชื่อ-นามสกุล <span class="text-rose-500">*</span></label>
+        <input id="setupName" class="w-full px-4 py-3 rounded-xl border border-slate-300 big-input focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="เช่น สมชาย ใจดี" type="text"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">เบอร์โทรศัพท์ <span class="text-rose-500">*</span></label>
+        <input id="setupPhone" class="w-full px-4 py-3 rounded-xl border border-slate-300 big-input focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="08X-XXX-XXXX" type="tel"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">ท่านเป็น อสม. หมู่ไหน? <span class="text-rose-500">*</span></label>
+        <select id="setupMoo" class="w-full px-4 py-3 rounded-xl border border-slate-300 big-input focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+          <option value="">— เลือกหมู่ —</option>
+          <option value="1">หมู่ 1</option><option value="2">หมู่ 2</option><option value="3">หมู่ 3</option>
+          <option value="4">หมู่ 4</option><option value="5">หมู่ 5</option><option value="6">หมู่ 6</option>
+          <option value="7">หมู่ 7</option><option value="8">หมู่ 8</option>
+        </select>
+      </div>
+    </div>
+    
+    <button onclick="saveSetup()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-lg text-base big-btn">
+      <i class="fa-solid fa-check-circle"></i> เริ่มใช้งาน
+    </button>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="mainApp" class="min-h-screen hidden pb-20">
+  
+  <!-- Header Bar -->
+  <div class="sticky top-0 z-30 bg-emerald-700 text-white px-4 py-3 flex items-center justify-between shadow-md">
+    <div>
+      <div class="font-extrabold text-sm" id="headerName">อสม.</div>
+      <div class="text-xs text-emerald-200" id="headerMoo">หมู่ X</div>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="syncBadge" class="text-xs px-2 py-1 rounded-full bg-emerald-600">💾 Local</span>
+      <button onclick="openAdmin()" class="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-xs" title="Admin">
+        <i class="fa-solid fa-user-shield"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="px-4 py-3 bg-white border-b border-slate-200">
+    <div class="flex justify-between items-center mb-1">
+      <span class="text-xs font-bold text-slate-700">📊 ความคืบหน้า</span>
+      <span class="text-xs font-extrabold text-emerald-700" id="progressText">0 หลัง</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <!-- Content Area -->
+  <div class="p-4 space-y-4" id="contentArea">
+    
+    <!-- GPS Section -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 text-center space-y-3">
+      <h3 class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-location-dot text-emerald-600"></i> จับพิกัด GPS</h3>
+      <button class="gps-btn gps-ready" id="gpsBtn" onclick="captureGPS()" type="button">
+        <i class="fa-solid fa-crosshairs gps-icon" id="gpsIcon"></i>
+      </button>
+      <div class="gps-status" id="gpsStatus">กดปุ่มเพื่อจับพิกัด</div>
+      <div id="accuracyWarning" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+        <i class="fa-solid fa-triangle-exclamation"></i> <strong>พิกัดอาจไม่แม่นยำ</strong> — กรุณาอยู่กลางแจ้ง แล้วลองใหม่
+      </div>
+    </div>
+
+    <!-- Mini Map -->
+    <div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-200">
+      <h3 class="font-bold text-slate-800 text-sm mb-2"><i class="fa-solid fa-map text-blue-600"></i> แผนที่当前位置</h3>
+      <div id="miniMap"></div>
+      <p class="text-[10px] text-slate-400 mt-1 text-center">ลากหมุดเพื่อแก้ไขตำแหน่ง</p>
+    </div>
+
+    <!-- House Number Input -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-house text-emerald-600"></i> บ้านเลขที่ <span class="text-rose-500">*</span></label>
+      <input id="houseNo" class="w-full px-4 py-3 rounded-xl border border-slate-300 big-input focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="เช่น 45/2" type="text"/>
+      
+      <!-- Owner Name (optional) -->
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">ชื่อเจ้าของบ้าน (ถ้ารู้)</label>
+        <input id="ownerName" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="ไม่บังคับ" type="text"/>
+      </div>
+    </div>
+
+    <!-- Photo Section -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-camera text-rose-500"></i> ถ่ายรูปหน้าบ้าน (ถ้าสะดวก)</label>
+      <div class="flex gap-2">
+        <label for="photoInput" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-center cursor-pointer transition text-sm font-bold text-slate-700">
+          <i class="fa-solid fa-camera"></i> ถ่ายรูป
+        </label>
+        <input id="photoInput" accept="image/*" capture="environment" class="hidden" type="file" onchange="previewPhoto(event)"/>
+        <button onclick="removePhoto()" class="hidden px-3 py-3 bg-rose-100 hover:bg-rose-200 rounded-xl text-rose-600 text-sm font-bold" id="removePhotoBtn">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+      <div id="photoPreviewWrap" class="hidden">
+        <img id="photoPreview" class="photo-preview w-full rounded-xl border border-slate-200"/>
+      </div>
+    </div>
+
+    <!-- Nearby Landmark -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-map-pin text-amber-500"></i> สถานที่ใกล้เคียง (ถ้าสะดวก)</label>
+      <div class="flex flex-wrap gap-2" id="landmarkTags">
+        <button onclick="toggleLandmark(this)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-300 transition" data-tag="วัด">🙏 วัด</button>
+        <button onclick="toggleLandmark(this)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-300 transition" data-tag="ร้าน">🏪 ร้าน</button>
+        <button onclick="toggleLandmark(this)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-300 transition" data-tag="ซอย">🛤️ ซอย</button>
+        <button onclick="toggleLandmark(this)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-300 transition" data-tag="สะพาน">🌉 สะพาน</button>
+        <button onclick="toggleLandmark(this)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-300 transition" data-tag="สุสาน">⚰️ สุสาน</button>
+        <button onclick="toggleLandmark(this)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-300 transition" data-tag="โรงเรียน">🏫 โรงเรียน</button>
+        <button onclick="toggleLandmark(this)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-300 transition" data-tag="ตลาด">🛒 ตลาด</button>
+        <button onclick="toggleLandmark(this)" class="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:border-amber-300 transition" data-tag="ปั๊ม">⛽ ปั๊ม</button>
+      </div>
+      <input id="landmarkText" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="หรือพิมพ์เอง เช่น 'ใกล้ร้านป้าสมศรี'" type="text"/>
+    </div>
+
+    <!-- Duplicate Alert -->
+    <div id="duplicateAlert" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
+      <div class="flex items-start gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
+        <div>
+          <div class="font-bold" id="dupAlertText">บ้านนี้มีข้อมูลแล้ว</div>
+          <div class="text-xs text-amber-600 mt-1" id="dupAlertDetail"></div>
+          <div class="flex gap-2 mt-2">
+            <button onclick="confirmUpdate()" class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold">อัพเดทพิกัดใหม่</button>
+            <button onclick="cancelSubmit()" class="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">ข้าม</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Button -->
+    <button onclick="handleSubmit()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-600/30 transition text-lg big-btn" id="submitBtn">
+      <i class="fa-solid fa-floppy-disk"></i> บันทึกพิกัด
+    </button>
+  </div>
+
+  <!-- Done List -->
+  <div class="px-4 pb-4">
+    <details class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <summary class="p-4 font-bold text-emerald-700 cursor-pointer flex justify-between items-center">
+        <span>✅ บ้านที่บันทึกแล้ว (<span id="doneCount">0</span>)</span>
+        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i>
+      </summary>
+      <ul class="px-4 pb-4 space-y-2" id="doneList"></ul>
+    </details>
+  </div>
+</div>
+
+<!-- ==================== ADMIN SCREEN ==================== -->
+<div id="adminScreen" class="min-h-screen hidden pb-20">
+  <div class="sticky top-0 z-30 bg-slate-800 text-white px-4 py-3 flex items-center justify-between">
+    <div class="font-extrabold text-sm"><i class="fa-solid fa-user-shield"></i> ฝ่ายเจ้าหน้าที่</div>
+    <button onclick="closeAdmin()" class="px-3 py-1 bg-slate-600 rounded-lg text-xs font-bold">ปิด</button>
+  </div>
+  
+  <div class="p-4 space-y-4">
+    <!-- Stats -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+      <div class="flex justify-between items-center text-sm">
+        <span class="font-bold text-slate-700">📊 สรุปข้อมูล</span>
+        <span id="adminStats" class="font-extrabold text-emerald-700">0 หลัง</span>
+      </div>
+    </div>
+    
+    <!-- Export Buttons -->
+    <div class="flex gap-2">
+      <button onclick="exportCSV()" class="flex-1 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl"><i class="fa-solid fa-file-csv"></i> CSV</button>
+      <button onclick="exportJSON()" class="flex-1 py-2.5 bg-blue-600 text-white font-bold text-xs rounded-xl"><i class="fa-solid fa-code"></i> JSON</button>
+      <button onclick="shareData()" class="flex-1 py-2.5 bg-sky-600 text-white font-bold text-xs rounded-xl"><i class="fa-solid fa-share"></i> แชร์</button>
+    </div>
+    
+    <!-- Records Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div class="overflow-x-auto max-h-[60vh] overflow-y-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 sticky top-0 z-10">
+            <tr class="text-slate-600 font-semibold">
+              <th class="p-2 text-left">บ้านเลขที่</th>
+              <th class="p-2 text-left">เจ้าของ</th>
+              <th class="p-2 text-left">สถานะ</th>
+              <th class="p-2 text-left">เวลา</th>
+              <th class="p-2 text-center">แผนที่</th>
+            </tr>
+          </thead>
+          <tbody id="adminTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- History Log -->
+    <details class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <summary class="p-4 font-bold text-slate-700 cursor-pointer text-sm">
+        <i class="fa-solid fa-clock-rotate-left text-slate-500"></i> ประวัติการแก้ไข (<span id="historyCount">0</span>)
+      </summary>
+      <ul class="px-4 pb-4 space-y-2 text-xs" id="historyList"></ul>
+    </details>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ==================== CONFIG ====================
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyGvePn1Jmdwf5QevTI4-gsS6VAwXOSPHwd6pn7wWhjTIZ_DKjj8OlpHs-lR2NsexzELg/exec';
+const STORAGE_KEY = 'yarang_gis_data';
+const PROFILE_KEY = 'yarang_gis_profile';
+
+// ==================== STATE ====================
+let profile = null;        // { name, phone, moo }
+let houses = [];           // [{ houseNo, owner, lat, lng, accuracy, photo, landmarks, updatedBy, timestamp, history[] }]
+let currentGPS = null;     // { lat, lng, accuracy }
+let map = null;
+let marker = null;
+let isOnline = navigator.onLine;
+let pendingSync = [];      // houses waiting to sync
+
+// ==================== INIT ====================
+window.onload = function() {
+  // Check if profile exists
+  const saved = localStorage.getItem(PROFILE_KEY);
+  if (saved) {
+    profile = JSON.parse(saved);
+    showMainApp();
+  }
+  
+  // Listen for online/offline
+  window.addEventListener('online', () => { isOnline = true; updateSyncBadge(); autoSync(); });
+  window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
+};
+
+// ==================== SETUP ====================
+function saveSetup() {
+  const name = document.getElementById('setupName').value.trim();
+  const phone = document.getElementById('setupPhone').value.trim();
+  const moo = document.getElementById('setupMoo').value;
+  
+  if (!name) { showToast('กรุณากรอกชื่อ-นามสกุล', 'error'); return; }
+  if (!phone) { showToast('กรุณากรอกเบอร์โทรศัพท์', 'error'); return; }
+  if (!moo) { showToast('กรุณาเลือกหมู่', 'error'); return; }
+  
+  profile = { name, phone, moo };
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  showToast('บันทึกข้อมูลสำเร็จ!', 'success');
+  showMainApp();
+}
+
+function showMainApp() {
+  document.getElementById('setupScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('headerName').textContent = 'อสม. ' + profile.name;
+  document.getElementById('headerMoo').textContent = 'หมู่ ' + profile.moo;
+  
+  // Load saved houses
+  loadHouses();
+  renderDoneList();
+  updateProgress();
+  updateSyncBadge();
+  
+  // Init map
+  setTimeout(initMap, 300);
+}
+
+// ==================== MAP ====================
+function initMap() {
+  if (map) return;
+  // Default center: Yarang district
+  const defaultLat = 6.66, defaultLng = 101.28;
+  map = L.map('miniMap', { zoomControl: false, attributionControl: false }).setView([defaultLat, defaultLng], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(map);
+  
+  // Add existing house markers
+  houses.forEach(h => {
+    if (h.lat && h.lng) {
+      L.circleMarker([h.lat, h.lng], { radius: 6, color: '#10b981', fillColor: '#10b981', fillOpacity: 0.8 })
+        .addTo(map).bindPopup('บ้าน ' + h.houseNo);
+    }
+  });
+}
+
+function updateMapPosition(lat, lng) {
+  if (!map) return;
+  map.setView([lat, lng], 17);
+  
+  // Remove old marker
+  if (marker) map.removeLayer(marker);
+  
+  // Add new draggable marker
+  marker = L.marker([lat, lng], { draggable: true }).addTo(map)
+    .bindPopup('ลากหมุดเพื่อแก้ไขตำแหน่ง').openPopup();
+  
+  // Update GPS when marker is dragged
+  marker.on('dragend', function(e) {
+    const pos = e.target.getLatLng();
+    currentGPS = { lat: pos.lat.toFixed(6), lng: pos.lng.toFixed(6), accuracy: 0 };
+    document.getElementById('latitude') && (document.getElementById('latitude').value = currentGPS.lat);
+    document.getElementById('longitude') && (document.getElementById('longitude').value = currentGPS.lng);
+    showToast('แก้ไขตำแหน่งสำเร็จ', 'success');
+  });
+}
+
+// ==================== GPS ====================
+function captureGPS() {
+  const btn = document.getElementById('gpsBtn');
+  const status = document.getElementById('gpsStatus');
+  const icon = document.getElementById('gpsIcon');
+  const warning = document.getElementById('accuracyWarning');
+  
+  btn.className = 'gps-btn gps-loading';
+  icon.className = 'fa-solid fa-spinner gps-icon';
+  status.className = 'gps-status';
+  status.textContent = 'กำลังค้นหาสัญญาณดาวเทียม...';
+  warning.classList.add('hidden');
+  
+  if (!navigator.geolocation) {
+    setGpsError('อุปกรณ์นี้ไม่รองรับ GPS');
+    return;
+  }
+  
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      const acc = Math.round(pos.coords.accuracy);
+      const isAccurate = acc <= 30;
+      
+      currentGPS = { lat, lng, accuracy: acc };
+      
+      btn.className = 'gps-btn ' + (isAccurate ? 'gps-ok' : 'gps-warn');
+      icon.className = 'fa-solid ' + (isAccurate ? 'fa-location-dot' : 'fa-location-crosshairs') + ' gps-icon';
+      status.className = 'gps-status ' + (isAccurate ? 'ok' : 'warn');
+      status.textContent = `ละติจูด: ${lat}, ลองจิจูด: ${lng} (±${acc} ม.)`;
+      
+      if (!isAccurate) warning.classList.remove('hidden');
+      else warning.classList.add('hidden');
+      
+      updateMapPosition(parseFloat(lat), parseFloat(lng));
+      checkDuplicate();
+      showToast(isAccurate ? `จับพิกัดสำเร็จ (±${acc} ม.)` : `จับพิกัดได้แต่อาจไม่แม่นยำ (±${acc} ม.)`, isAccurate ? 'success' : 'warning');
+    },
+    (err) => {
+      let msg = 'เกิดข้อผิดพลาด: โปรดเปิด GPS/Location ของมือถือ';
+      if (err.code === err.PERMISSION_DENIED) msg = 'ไม่ได้รับอนุญาตเข้าถึงตำแหน่ง โปรดอนุญาตในตั้งค่า';
+      else if (err.code === err.TIMEOUT) msg = 'ค้นหาสัญญาณดาวเทียมเกินเวลา ลองใหม่อีกครั้ง';
+      setGpsError(msg);
+    },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+  );
+}
+
+function setGpsError(msg) {
+  const btn = document.getElementById('gpsBtn');
+  const status = document.getElementById('gpsStatus');
+  const icon = document.getElementById('gpsIcon');
+  btn.className = 'gps-btn gps-error';
+  icon.className = 'fa-solid fa-satellite-dish gps-icon';
+  status.className = 'gps-status error';
+  status.textContent = msg;
+}
+
+// ==================== PHOTO ====================
+let currentPhoto = null;
+
+function previewPhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    currentPhoto = e.target.result;
+    document.getElementById('photoPreview').src = currentPhoto;
+    document.getElementById('photoPreviewWrap').classList.remove('hidden');
+    document.getElementById('removePhotoBtn').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  currentPhoto = null;
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoPreviewWrap').classList.add('hidden');
+  document.getElementById('removePhotoBtn').classList.add('hidden');
+}
+
+// ==================== LANDMARKS ====================
+let selectedLandmarks = [];
+
+function toggleLandmark(btn) {
+  const tag = btn.dataset.tag;
+  const idx = selectedLandmarks.indexOf(tag);
+  if (idx >= 0) {
+    selectedLandmarks.splice(idx, 1);
+    btn.classList.remove('bg-amber-100', 'border-amber-400', 'text-amber-800');
+    btn.classList.add('bg-slate-50', 'border-slate-200', 'text-slate-600');
+  } else {
+    selectedLandmarks.push(tag);
+    btn.classList.remove('bg-slate-50', 'border-slate-200', 'text-slate-600');
+    btn.classList.add('bg-amber-100', 'border-amber-400', 'text-amber-800');
+  }
+}
+
+// ==================== DUPLICATE CHECK ====================
+function checkDuplicate() {
+  const houseNo = document.getElementById('houseNo').value.trim();
+  if (!houseNo) return;
+  
+  const existing = houses.find(h => h.houseNo === houseNo);
+  const alert = document.getElementById('duplicateAlert');
+  
+  if (existing && existing.lat) {
+    document.getElementById('dupAlertText').textContent = `บ้าน ${houseNo} มีพิกัดแล้ว`;
+    document.getElementById('dupAlertDetail').textContent = `บันทึกโดย ${existing.updatedBy || 'ไม่ระบุ'} วันที่ ${existing.timestamp || 'ไม่ระบุ'}`;
+    alert.classList.remove('hidden');
+  } else {
+    alert.classList.add('hidden');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const houseInput = document.getElementById('houseNo');
+  if (houseInput) houseInput.addEventListener('input', checkDuplicate);
+});
+
+function confirmUpdate() {
+  document.getElementById('duplicateAlert').classList.add('hidden');
+  handleSubmit(true);
+}
+
+function cancelSubmit() {
+  document.getElementById('duplicateAlert').classList.add('hidden');
+  document.getElementById('houseNo').value = '';
+  document.getElementById('ownerName').value = '';
+}
+
+// ==================== SUBMIT ====================
+function handleSubmit(isUpdate = false) {
+  const houseNo = document.getElementById('houseNo').value.trim();
+  const owner = document.getElementById('ownerName').value.trim();
+  const landmarkText = document.getElementById('landmarkText').value.trim();
+  const allLandmarks = [...selectedLandmarks];
+  if (landmarkText) allLandmarks.push(landmarkText);
+  
+  // Validate
+  if (!houseNo) { showToast('กรุณากรอกบ้านเลขที่', 'error'); return; }
+  
+  // Auto-GPS if not captured
+  if (!currentGPS) {
+    showToast('กำลังจับสัญญาณ GPS...', 'info');
+    captureGPS();
+    // Wait for GPS then submit
+    const waitGPS = setInterval(() => {
+      if (currentGPS) {
+        clearInterval(waitGPS);
+        doSubmit(houseNo, owner, allLandmarks, isUpdate);
+      }
+    }, 500);
+    // Timeout after 20s
+    setTimeout(() => { clearInterval(waitGPS); }, 20000);
+    return;
+  }
+  
+  // Check accuracy gate
+  if (currentGPS.accuracy > 30) {
+    showToast('พิกัดยังไม่แม่นยำ (>' + currentGPS.accuracy + ' ม.) กรุณาลองใหม่', 'error');
+    return;
+  }
+  
+  doSubmit(houseNo, owner, allLandmarks, isUpdate);
+}
+
+function doSubmit(houseNo, owner, landmarks, isUpdate) {
+  const now = new Date().toLocaleString('th-TH');
+  const record = {
+    houseNo,
+    moo: profile.moo,
+    owner: owner || '',
+    lat: currentGPS.lat,
+    lng: currentGPS.lng,
+    accuracy: currentGPS.accuracy,
+    photo: currentPhoto || '',
+    landmarks: landmarks,
+    updatedBy: profile.name,
+    timestamp: now,
+    history: []
+  };
+  
+  if (isUpdate) {
+    const idx = houses.findIndex(h => h.houseNo === houseNo);
+    if (idx >= 0) {
+      // Push old record to history
+      const old = { ...houses[idx] };
+      old.action = houses[idx].lat ? 'updated' : 'created';
+      old.history = undefined; // don't nest history
+      record.history = [...(houses[idx].history || []), old];
+      houses[idx] = record;
+    }
+  } else {
+    // Check if exists
+    const idx = houses.findIndex(h => h.houseNo === houseNo);
+    if (idx >= 0 && houses[idx].lat) {
+      // Already has GPS — this is an update
+      const old = { ...houses[idx] };
+      old.action = 'updated';
+      old.history = undefined;
+      record.history = [...(houses[idx].history || []), old];
+      houses[idx] = record;
+    } else if (idx >= 0) {
+      // Exists but no GPS yet — fill it in
+      record.history = houses[idx].history || [];
+      houses[idx] = record;
+    } else {
+      houses.push(record);
+    }
+  }
+  
+  // Save locally
+  saveHouses();
+  
+  // Try cloud sync
+  syncToCloud(record);
+  
+  // Reset form
+  resetForm();
+  
+  // Update UI
+  renderDoneList();
+  updateProgress();
+  
+  showToast('✅ บันทึกสำเร็จ!', 'success');
+}
+
+function resetForm() {
+  document.getElementById('houseNo').value = '';
+  document.getElementById('ownerName').value = '';
+  document.getElementById('landmarkText').value = '';
+  selectedLandmarks = [];
+  document.querySelectorAll('#landmarkTags button').forEach(btn => {
+    btn.classList.remove('bg-amber-100', 'border-amber-400', 'text-amber-800');
+    btn.classList.add('bg-slate-50', 'border-slate-200', 'text-slate-600');
+  });
+  removePhoto();
+  
+  // Reset GPS
+  currentGPS = null;
+  const btn = document.getElementById('gpsBtn');
+  const icon = document.getElementById('gpsIcon');
+  const status = document.getElementById('gpsStatus');
+  btn.className = 'gps-btn gps-ready';
+  icon.className = 'fa-solid fa-crosshairs gps-icon';
+  status.className = 'gps-status';
+  status.textContent = 'กดปุ่มเพื่อจับพิกัด';
+  document.getElementById('accuracyWarning').classList.add('hidden');
+  
+  // Reset map marker
+  if (marker) { map.removeLayer(marker); marker = null; }
+  
+  // Hide duplicate alert
+  document.getElementById('duplicateAlert').classList.add('hidden');
+  
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ==================== DATA PERSISTENCE ====================
+function saveHouses() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(houses));
+  } catch(e) {
+    console.warn('localStorage save failed:', e);
+    showToast('พื้นที่เก็บข้อมูลเต็ม กรุณาส่งออกข้อมูล', 'error');
+  }
+}
+
+function loadHouses() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) houses = JSON.parse(saved);
+  } catch(e) {
+    houses = [];
+  }
+}
+
+// ==================== CLOUD SYNC ====================
+function syncToCloud(record) {
+  if (!isOnline || !SCRIPT_URL) return;
+  
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action: 'saveHouse', data: record, profile })
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.success) {
+      updateSyncBadge(true);
+    }
+  })
+  .catch(() => {
+    // Will retry when back online
+    pendingSync.push(record);
+  });
+}
+
+function autoSync() {
+  if (!isOnline || pendingSync.length === 0) return;
+  
+  const toSync = [...pendingSync];
+  pendingSync = [];
+  
+  toSync.forEach(record => syncToCloud(record));
+  showToast('กำลังซิงค์ข้อมูล...', 'info');
+}
+
+function updateSyncBadge(synced) {
+  const badge = document.getElementById('syncBadge');
+  if (!badge) return;
+  if (synced) {
+    badge.textContent = '☁️ Cloud';
+    badge.className = 'text-xs px-2 py-1 rounded-full bg-emerald-600';
+  } else if (isOnline) {
+    badge.textContent = '☁️ Cloud';
+    badge.className = 'text-xs px-2 py-1 rounded-full bg-emerald-600';
+  } else {
+    badge.textContent = '💾 Local';
+    badge.className = 'text-xs px-2 py-1 rounded-full bg-amber-600';
+  }
+}
+
+// ==================== UI UPDATES ====================
+function renderDoneList() {
+  const done = houses.filter(h => h.lat);
+  document.getElementById('doneCount').textContent = done.length;
+  
+  const list = document.getElementById('doneList');
+  if (done.length === 0) {
+    list.innerHTML = '<li class="text-slate-400 text-center py-3 text-xs">ยังไม่มีรายการที่บันทึก</li>';
+    return;
+  }
+  
+  list.innerHTML = done.map(h => {
+    const acc = h.accuracy || 0;
+    const accBadge = acc <= 10 ? `<span class="text-emerald-600">±${acc}ม.</span>` 
+                    : acc <= 30 ? `<span class="text-amber-600">±${acc}ม.</span>` 
+                    : `<span class="text-rose-600">±${acc}ม.</span>`;
+    return `<li class="house-item done">
+      <div>
+        <span class="font-bold text-slate-800">บ้าน ${h.houseNo}</span>
+        <span class="text-xs text-slate-500 ml-2">${h.owner || ''}</span>
+        <span class="text-xs ml-2">${accBadge}</span>
+        ${h.landmarks && h.landmarks.length ? '<div class="text-[10px] text-slate-400 mt-0.5">' + h.landmarks.join(' • ') + '</div>' : ''}
+      </div>
+      <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">✓</span>
+    </li>`;
+  }).join('');
+}
+
+function updateProgress() {
+  const total = houses.length;
+  const done = houses.filter(h => h.lat).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  
+  document.getElementById('progressText').textContent = `${done} / ${total} หลัง (${pct}%)`;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+// ==================== ADMIN ====================
+function openAdmin() {
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('adminScreen').classList.remove('hidden');
+  renderAdminTable();
+  renderHistory();
+}
+
+function closeAdmin() {
+  document.getElementById('adminScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+}
+
+function renderAdminTable() {
+  const tbody = document.getElementById('adminTableBody');
+  const total = houses.length;
+  const completed = houses.filter(h => h.lat).length;
+  document.getElementById('adminStats').textContent = `${completed}/${total} หลัง`;
+  
+  if (houses.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = houses.map(h => {
+    const hasLoc = !!(h.lat && h.lng);
+    const acc = h.accuracy || 0;
+    const accBadge = hasLoc ? (
+      acc <= 10 ? `<span class="text-emerald-600 font-bold">±${acc}ม.</span>` :
+      acc <= 30 ? `<span class="text-amber-600">±${acc}ม.</span>` :
+      `<span class="text-rose-600 font-bold">±${acc}ม.</span>`
+    ) : '';
+    const statusBadge = hasLoc
+      ? `<span class="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">✓ ${accBadge}</span>`
+      : '<span class="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">⏳ รอพิกัด</span>';
+    const mapLink = hasLoc ? `<a href="https://maps.google.com/?q=${h.lat},${h.lng}" target="_blank" class="text-emerald-600"><i class="fa-solid fa-map-location-dot"></i></a>` : '-';
+    return `<tr class="hover:bg-slate-50 border-t border-slate-100">
+      <td class="p-2 font-bold">${h.houseNo}</td>
+      <td class="p-2 text-slate-600">${h.owner || '-'}</td>
+      <td class="p-2">${statusBadge}</td>
+      <td class="p-2 text-[10px] text-slate-500">${h.timestamp || '-'}</td>
+      <td class="p-2 text-center">${mapLink}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderHistory() {
+  const allHistory = [];
+  houses.forEach(h => {
+    if (h.history && h.history.length > 0) {
+      h.history.forEach(entry => {
+        allHistory.push({ ...entry, currentHouse: h.houseNo });
+      });
+    }
+  });
+  
+  // Sort by timestamp descending
+  allHistory.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+  
+  document.getElementById('historyCount').textContent = allHistory.length;
+  const list = document.getElementById('historyList');
+  
+  if (allHistory.length === 0) {
+    list.innerHTML = '<li class="text-slate-400 text-center py-3">ยังไม่มีประวัติ</li>';
+    return;
+  }
+  
+  list.innerHTML = allHistory.map(h => {
+    const action = h.action === 'updated' ? '🔄 แก้ไข' : '➕ สร้างใหม่';
+    return `<li class="house-item done">
+      <div>
+        <span class="font-bold">${action} บ้าน ${h.currentHouse || h.houseNo}</span>
+        <span class="text-slate-500 ml-1">โดย ${h.updatedBy || '-'}</span>
+        <div class="text-[10px] text-slate-400">${h.timestamp || ''} | ±${h.accuracy || '?'}ม.</div>
+      </div>
+    </li>`;
+  }).join('');
+}
+
+// ==================== EXPORT ====================
+function exportCSV() {
+  if (houses.length === 0) { showToast('ไม่มีข้อมูลให้ส่งออก', 'error'); return; }
+  const headers = ['หมู่','บ้านเลขที่','เจ้าของ','ละติจูด','ลองจิจูด','ความแม่นยำ','สถานะ','ผู้บันทึก','เวลา','สถานที่ใกล้เคียง'];
+  const rows = houses.map(h => [
+    h.moo, h.houseNo, h.owner||'', h.lat||'', h.lng||'', h.accuracy||'',
+    h.lat ? 'จัดเก็บแล้ว' : 'รอพิกัด', h.updatedBy||'', h.timestamp||'',
+    (h.landmarks||[]).join(' ')
+  ]);
+  const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+  downloadFile(new Blob([csv], {type:'text/csv;charset=utf-8'}), `gis_export_${new Date().toISOString().slice(0,10)}.csv`);
+  showToast('ส่งออก CSV สำเร็จ', 'success');
+}
+
+function exportJSON() {
+  if (houses.length === 0) { showToast('ไม่มีข้อมูลให้ส่งออก', 'error'); return; }
+  const data = houses.map(h => ({
+    houseNo: h.houseNo, moo: h.moo, owner: h.owner, lat: h.lat, lng: h.lng,
+    accuracy: h.accuracy, landmarks: h.landmarks, updatedBy: h.updatedBy, timestamp: h.timestamp
+  }));
+  downloadFile(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}), `gis_export_${new Date().toISOString().slice(0,10)}.json`);
+  showToast('ส่งออก JSON สำเร็จ', 'success');
+}
+
+function shareData() {
+  if (houses.length === 0) { showToast('ไม่มีข้อมูลให้แชร์', 'error'); return; }
+  const text = houses.map(h => `บ้าน ${h.houseNo} | ${h.owner||'-'} | ±${h.accuracy||'?'}ม. | ${h.timestamp||''}`).join('\n');
+  if (navigator.share) {
+    navigator.share({ title: 'GIS Data', text }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('คัดลอกข้อมูลแล้ว', 'success'));
+  }
+}
+
+function downloadFile(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ==================== TOAST ====================
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'show';
+  toast.style.background = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : type === 'warning' ? '#f59e0b' : '#1e293b';
+  setTimeout(() => { toast.className = ''; }, 3000);
+}
+</script>
+</body>
+</html>
