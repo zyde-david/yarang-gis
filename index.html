@@ -45,7 +45,6 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
 .house-item.done{background:#ecfdf5;border:1px solid #a7f3d0}
 .house-item.pending{background:#fff;border:1px solid #e2e8f0;cursor:pointer}
 .house-item.pending:active{background:#f0fdf4;transform:scale(.98)}
-.house-label{background:none;border:none}
 </style>
 </head>
 <body>
@@ -91,7 +90,6 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
     </div>
     <div class="flex items-center gap-2">
       <span id="syncBadge" class="text-xs px-2 py-1 rounded-full bg-emerald-600">💾 Local</span>
-      <button onclick="toggleLang()" id="langBtn" class="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-xs font-bold">🇹🇭</button>
       <button onclick="openAdmin()" class="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-user-shield"></i></button>
     </div>
   </div>
@@ -109,8 +107,11 @@ body{font-family:'Sukhumvit Set','Prompt',-apple-system,sans-serif;margin:0;back
   <div class="p-4 space-y-3">
     <!-- House Number + Verify -->
     <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
-      
-      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-house text-emerald-600"></i> บ้านเลขที่ (ไม่บังคับ)</label>
+      <div class="flex gap-2 mb-2">
+        <button onclick="setMode('add')" id="modeAdd" class="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white">➕ เพิ่มบ้าน</button>
+        <button onclick="setMode('check')" id="modeCheck" class="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">🔍 ตรวจสอบ</button>
+      </div>
+      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-house text-emerald-600"></i> บ้านเลขที่ *</label>
       <input id="houseNo" class="w-full px-4 py-3 rounded-xl border border-slate-300 big-input focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="เช่น 45/2" type="text" oninput="onHouseInput()"/>
       <div id="houseInfo" class="hidden bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs"><div class="font-bold text-blue-800 mb-1">📋 ข้อมูลบ้านนี้</div><div id="houseInfoContent"></div></div>
       <div id="verifySection" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-3">
@@ -299,16 +300,6 @@ let mediaRecorder=null,audioChunks=[],audioBlob=null,audioBase64=null;
 let recognition=null,isRecording=false,recordingTimer=null,recordingSeconds=0,transcriptText='';
 let currentPhoto=null,currentVideo=null,selectedLandmarks=[];
 
-// === LANGUAGE TOGGLE ===
-let currentLang='th-TH';
-function toggleLang(){
-  currentLang=currentLang==='th-TH'?'ms-MY':'th-TH';
-  document.getElementById('langBtn').textContent=currentLang==='th-TH'?'🇹🇭':'🇲🇾';
-  showToast(currentLang==='th-TH'?'ภาษาไทย':'Bahasa Melayu','info');
-}
-
-
-
 // === SETUP ===
 window.onload=function(){
   const s=localStorage.getItem(PROFILE_KEY);
@@ -332,7 +323,7 @@ function saveSetup(){
 function showMainApp(){
   document.getElementById('setupScreen').classList.add('hidden');
   document.getElementById('mainApp').classList.remove('hidden');
-  document.getElementById('headerName').innerHTML='อสม. '+profile.name+' <i class='fa-solid fa-pen text-[10px]'></i>';
+  document.getElementById('headerName').innerHTML='อสม. '+profile.name+' <i class="fa-solid fa-pen text-[10px]"></i>';
   document.getElementById('headerMoo').textContent='หมู่ '+profile.moo;
   loadHouses();renderDoneList();updateProgress();updateSyncBadge();
   setTimeout(initMap,300);
@@ -354,9 +345,6 @@ function refreshMapMarkers(){
       const m=L.circleMarker([h.lat,h.lng],{radius:7,color:'#10b981',fillColor:'#10b981',fillOpacity:.85,weight:2}).addTo(map);
       m._isHouse=true;
       m.bindPopup('<b>บ้าน '+h.houseNo+'</b><br>'+(h.owner||'')+'<br>±'+(h.accuracy||'?')+'ม.'+(h.healthTags&&h.healthTags.length?'<br>🏷️ '+h.healthTags.join(', '):'')+'<br><a href="https://maps.google.com/?q='+h.lat+','+h.lng+'" target="_blank">เปิดใน Google Maps</a>');
-      // Add house number label
-      const label=L.divIcon({className:'house-label',html:'<div style="background:#10b981;color:#fff;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.3)">'+h.houseNo+'</div>',iconAnchor:[20,10]});
-      const lbl=L.marker([h.lat,h.lng],{icon:label,interactive:false}).addTo(map);lbl._isHouse=true;
     }
   });
 }
@@ -377,7 +365,7 @@ function captureGPS(){
   const btn=document.getElementById('gpsBtn'),st=document.getElementById('gpsStatus'),ic=document.getElementById('gpsIcon'),w=document.getElementById('accuracyWarning');
   btn.className='gps-btn loading';ic.className='fa-solid fa-spinner gi';
   st.className='gps-st';st.textContent='กำลังค้นหาสัญญาณดาวเทียม...';
-  w.classList.add('hidden');}
+  w.classList.add('hidden');
   if(!navigator.geolocation){setGpsError('อุปกรณ์ไม่รองรับ GPS');return}
   navigator.geolocation.getCurrentPosition(pos=>{
     const lat=pos.coords.latitude.toFixed(6),lng=pos.coords.longitude.toFixed(6),acc=Math.round(pos.coords.accuracy);
@@ -387,7 +375,7 @@ function captureGPS(){
     ic.className='fa-solid '+(ok?'fa-location-dot':'fa-location-crosshairs')+' gi';
     st.className='gps-st '+(ok?'ok':'warn');
     st.textContent='ละติจูด: '+lat+', ลองจิจูด: '+lng+' (±'+acc+' ม.)';
-    if(!ok){w.classList.remove('hidden');else w.classList.add('hidden');}
+    if(!ok){w.classList.remove('hidden');document.getElementById('accMeters').textContent=acc}else w.classList.add('hidden');
     updateMapPosition(parseFloat(lat),parseFloat(lng));
     checkDuplicate();
     gpsCaptured=true;
@@ -439,28 +427,6 @@ function startRecording(){
   }).catch(err=>showToast('ไม่สามารถเข้าถึงไมโครโฟน: '+err.message,'error'));
 }
 
-
-// === AUTO-DETECT HEALTH TAGS ===
-const TAG_KEYWORDS={
-  'ผู้สูงอายุ':['ผู้สูงอายุ','คนแก่','อายุมาก','แก่แล้ว','อายุเยอะ'],
-  'ผู้ป่วยติดเตียง':['ติดเตียง','นอนอย่างเดียว','ลุกไม่ได้','ลุกไม่ขึ้น'],
-  'ผู้ป่วยติดบ้าน':['ติดบ้าน','ออกไปไม่ได้','ไม่ออกจากบ้าน','ไม่ได้ออกนอกบ้าน'],
-  'ผู้พิการ':['พิการ','ทุพพลภาพ','นั่งรถเข็น','ตาบอด','หูหนวก','เป็นใบ้'],
-  'NCDs':['เบาหวาน','ความดัน','ไขมัน','หัวใจ','ไตวาย','มะเร็ง','NCDs','โรคเรื้อรัง'],
-  'ไข้เลือดออก':['ไข้เลือดออก','ยุงลาย',' Dengue','ไข้สูง'],
-  'อุบัติเหตุ':['หกล้ม','อุบัติเหตุ','บาดเจ็บ','骨折','รถชน','แผล']
-};
-function autoDetectHealthTags(text){
-  if(!text)return;
-  const lower=text.toLowerCase();
-  Object.entries(TAG_KEYWORDS).forEach(([tag,keywords])=>{
-    if(keywords.some(kw=>lower.includes(kw.toLowerCase()))){
-      const cb=document.querySelector('.htag[value="'+tag+'"]');
-      if(cb&&!cb.checked){cb.checked=true;cb.parentElement.classList.add('bg-emerald-100','border-emerald-400');showToast('🏷️ ตรวจพบ: '+tag,'success')}
-    }
-  });
-}
-
 function stopRecording(){
   if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
   isRecording=false;clearInterval(recordingTimer);
@@ -474,12 +440,10 @@ function stopRecording(){
 function startTranscription(){
   if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window))return;
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  recognition=new SR();recognition.lang=currentLang;recognition.continuous=true;recognition.interimResults=true;
+  recognition=new SR();recognition.lang='th-TH';recognition.continuous=true;recognition.interimResults=true;
   recognition.onresult=e=>{let f='',i='';for(let x=e.resultIndex;x<e.results.length;x++){if(e.results[x].isFinal)f+=e.results[x][0].transcript;else i+=e.results[x][0].transcript}
     if(f)transcriptText+=f;
     document.getElementById('audioTranscript').innerHTML='<div class="font-bold text-emerald-700 mb-1">📝 ข้อความ:</div><div>'+transcriptText+'</div>'+(i?'<div class="text-slate-400 mt-1">'+i+'</div>':'');
-    // Auto-select health tags from transcript
-    autoDetectHealthTags(transcriptText);
   };
   recognition.onerror=e=>{if(e.error!=='no-speech')console.warn('Speech error:',e.error)};
   recognition.onend=()=>{if(isRecording)try{recognition.start()}catch(e){}};
@@ -669,25 +633,24 @@ function dl(b,n){const u=URL.createObjectURL(b),a=document.createElement('a');a.
 
 // === EDIT PROFILE ===
 function editProfile(){
-  document.getElementById('editName').value=profile.name;
-  document.getElementById('editPhone').value=profile.phone;
-  document.getElementById('editMoo').value=profile.moo;
-  document.getElementById('editProfileModal').classList.remove('hidden');
+  document.getElementById("editName").value=profile.name;
+  document.getElementById("editPhone").value=profile.phone;
+  document.getElementById("editMoo").value=profile.moo;
+  document.getElementById("editProfileModal").classList.remove("hidden");
 }
-function closeEditProfile(){document.getElementById('editProfileModal').classList.add('hidden')}
+function closeEditProfile(){document.getElementById("editProfileModal").classList.add("hidden")}
 function saveEditProfile(){
-  const n=document.getElementById('editName').value.trim();
-  const p=document.getElementById('editPhone').value.trim();
-  const m=document.getElementById('editMoo').value;
-  if(!n||!p){showToast('กรุณากรอกข้อมูลให้ครบ','error');return}
+  const n=document.getElementById("editName").value.trim();
+  const p=document.getElementById("editPhone").value.trim();
+  const m=document.getElementById("editMoo").value;
+  if(!n||!p){showToast("กรุณากรอกข้อมูลให้ครบ","error");return}
   profile={name:n,phone:p,moo:m};
   localStorage.setItem(PROFILE_KEY,JSON.stringify(profile));
-  document.getElementById('headerName').innerHTML='อสม. '+profile.name+' <i class="fa-solid fa-pen text-[10px]"></i>';
-  document.getElementById('headerMoo').textContent='หมู่ '+profile.moo;
+  document.getElementById("headerName").innerHTML="อสม. "+profile.name+" <i class=\"fa-solid fa-pen text-[10px]\"></i>";
+  document.getElementById("headerMoo").textContent="หมู่ "+profile.moo;
   closeEditProfile();
-  showToast('แก้ไขข้อมูลสำเร็จ','success');
+  showToast("แก้ไขข้อมูลสำเร็จ","success");
 }
-
 // === TOAST ===
 function showToast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='show';t.style.background=type==='error'?'#ef4444':type==='success'?'#10b981':type==='warning'?'#f59e0b':'#1e293b';setTimeout(()=>{t.className=''},3000)}
 </script>
