@@ -209,6 +209,27 @@
       </div>
     </div>
 
+    <!-- Audio Recording Section -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+      <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-microphone text-purple-500"></i> บันทึกเสียง (ถ้าสะดวก)</label>
+      <div class="flex gap-2 items-center">
+        <button onclick="toggleRecording()" id="audioBtn" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-center transition text-sm font-bold text-slate-700 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-microphone" id="audioIcon"></i>
+          <span id="audioBtnText">กดบันทึกเสียง</span>
+        </button>
+        <button onclick="removeAudio()" class="hidden px-3 py-3 bg-rose-100 hover:bg-rose-200 rounded-xl text-rose-600 text-sm font-bold" id="removeAudioBtn">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+      <div id="audioStatus" class="hidden text-xs text-center py-2 rounded-xl bg-purple-50 text-purple-700">
+        <span id="audioTimer">00:00</span> | <span id="audioTranscriptStatus">กำลังฟัง...</span>
+      </div>
+      <div id="audioPreview" class="hidden">
+        <audio id="audioPlayer" controls class="w-full h-10"></audio>
+        <div class="mt-2 p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-700" id="audioTranscript"></div>
+      </div>
+    </div>
+
     <!-- Nearby Landmark -->
     <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
       <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-map-pin text-amber-500"></i> สถานที่ใกล้เคียง (ถ้าสะดวก)</label>
@@ -552,6 +573,148 @@ function setGpsError(msg) {
 // ==================== PHOTO ====================
 let currentPhoto = null;
 
+// ==================== AUDIO RECORDING ====================
+let mediaRecorder = null;
+let audioChunks = [];
+let audioBlob = null;
+let audioBase64 = null;
+let recognition = null;
+let isRecording = false;
+let recordingTimer = null;
+let recordingSeconds = 0;
+let transcriptText = '';
+
+function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+    
+    mediaRecorder.onstop = () => {
+      audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        audioBase64 = reader.result;
+        document.getElementById('audioPlayer').src = audioBase64;
+        document.getElementById('audioPreview').classList.remove('hidden');
+        document.getElementById('removeAudioBtn').classList.remove('hidden');
+      };
+      reader.readAsDataURL(audioBlob);
+      stream.getTracks().forEach(t => t.stop());
+    };
+    
+    mediaRecorder.start();
+    isRecording = true;
+    
+    // Update UI
+    document.getElementById('audioBtn').className = 'flex-1 py-3 bg-rose-500 text-white rounded-xl text-center transition text-sm font-bold flex items-center justify-center gap-2';
+    document.getElementById('audioIcon').className = 'fa-solid fa-stop';
+    document.getElementById('audioBtnText').textContent = 'กดหยุด';
+    document.getElementById('audioStatus').classList.remove('hidden');
+    
+    // Start timer
+    recordingSeconds = 0;
+    recordingTimer = setInterval(() => {
+      recordingSeconds++;
+      const min = Math.floor(recordingSeconds / 60).toString().padStart(2, '0');
+      const sec = (recordingSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('audioTimer').textContent = min + ':' + sec;
+    }, 1000);
+    
+    // Start speech recognition
+    startTranscription();
+    
+  } catch(err) {
+    showToast('ไม่สามารถเข้าถึงไมโครโฟนได้: ' + err.message, 'error');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isRecording = false;
+  clearInterval(recordingTimer);
+  
+  // Update UI
+  document.getElementById('audioBtn').className = 'flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-center transition text-sm font-bold text-slate-700 flex items-center justify-center gap-2';
+  document.getElementById('audioIcon').className = 'fa-solid fa-microphone';
+  document.getElementById('audioBtnText').textContent = 'บันทึกเสียงใหม่';
+  document.getElementById('audioStatus').classList.add('hidden');
+  
+  // Stop transcription
+  if (recognition) {
+    recognition.stop();
+    recognition = null;
+  }
+}
+
+function startTranscription() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    document.getElementById('audioTranscriptStatus').textContent = 'เบราว์เซอร์ไม่รองรับการแปลงเสียง';
+    return;
+  }
+  
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'th-TH';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  
+  recognition.onresult = (event) => {
+    let final = '';
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        final += event.results[i][0].transcript;
+      } else {
+        interim += event.results[i][0].transcript;
+      }
+    }
+    if (final) transcriptText += final;
+    document.getElementById('audioTranscript').innerHTML = 
+      '<div class="font-bold text-emerald-700 mb-1">📝 ข้อความที่แปลงได้:</div>' +
+      '<div>' + transcriptText + '</div>' +
+      (interim ? '<div class="text-slate-400 mt-1">' + interim + '</div>' : '');
+  };
+  
+  recognition.onerror = (e) => {
+    if (e.error !== 'no-speech') {
+      document.getElementById('audioTranscriptStatus').textContent = 'เกิดข้อผิดพลาด: ' + e.error;
+    }
+  };
+  
+  recognition.onend = () => {
+    if (isRecording) recognition.start();
+  };
+  
+  recognition.start();
+  document.getElementById('audioTranscriptStatus').textContent = 'กำลังฟัง...';
+}
+
+function removeAudio() {
+  audioBlob = null;
+  audioBase64 = null;
+  transcriptText = '';
+  document.getElementById('audioInput') && (document.getElementById('audioInput').value = '');
+  document.getElementById('audioPreview').classList.add('hidden');
+  document.getElementById('removeAudioBtn').classList.add('hidden');
+  document.getElementById('audioBtnText').textContent = 'กดบันทึกเสียง';
+  document.getElementById('audioTranscript').innerHTML = '';
+}
+
 function previewPhoto(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -668,6 +831,8 @@ function doSubmit(houseNo, owner, landmarks, isUpdate) {
     lng: currentGPS.lng,
     accuracy: currentGPS.accuracy,
     photo: currentPhoto || '',
+    audio: audioBase64 || '',
+    transcript: transcriptText || '',
     landmarks: landmarks,
     updatedBy: profile.name,
     timestamp: now,
@@ -729,6 +894,7 @@ function resetForm() {
     btn.classList.add('bg-slate-50', 'border-slate-200', 'text-slate-600');
   });
   removePhoto();
+  removeAudio();
   
   // Reset GPS
   currentGPS = null;
@@ -938,7 +1104,7 @@ function exportCSV() {
   const headers = ['หมู่','บ้านเลขที่','เจ้าของ','ละติจูด','ลองจิจูด','ความแม่นยำ','สถานะ','ผู้บันทึก','เวลา','สถานที่ใกล้เคียง'];
   const rows = houses.map(h => [
     h.moo, h.houseNo, h.owner||'', h.lat||'', h.lng||'', h.accuracy||'',
-    h.lat ? 'จัดเก็บแล้ว' : 'รอพิกัด', h.updatedBy||'', h.timestamp||'',
+    h.lat ? 'จัดเก็บแล้ว' : 'รอพิกัด', h.updatedBy||'', h.timestamp||'', h.transcript||'',
     (h.landmarks||[]).join(' ')
   ]);
   const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
@@ -950,7 +1116,7 @@ function exportJSON() {
   if (houses.length === 0) { showToast('ไม่มีข้อมูลให้ส่งออก', 'error'); return; }
   const data = houses.map(h => ({
     houseNo: h.houseNo, moo: h.moo, owner: h.owner, lat: h.lat, lng: h.lng,
-    accuracy: h.accuracy, landmarks: h.landmarks, updatedBy: h.updatedBy, timestamp: h.timestamp
+    accuracy: h.accuracy, landmarks: h.landmarks, transcript: h.transcript || '', updatedBy: h.updatedBy, timestamp: h.timestamp
   }));
   downloadFile(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}), `gis_export_${new Date().toISOString().slice(0,10)}.json`);
   showToast('ส่งออก JSON สำเร็จ', 'success');
